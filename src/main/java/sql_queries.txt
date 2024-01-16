@@ -1,0 +1,30 @@
+CREATE DATABASE yazm457hw2;
+
+CREATE TABLE product_backlog(
+    id INT AUTO_INCREMENT,
+    taskname VARCHAR(30),
+    backlogId INT,
+    priority INT,
+    PRIMARY KEY (id)
+);
+
+CREATE TABLE sprint_backlog(
+    id INT AUTO_INCREMENT,
+    taskname VARCHAR(30),
+    backlogId INT,
+    sprintId INT,
+    priority INT,
+    PRIMARY KEY (id)
+);
+
+
+CREATE TABLE board(
+    id INT AUTO_INCREMENT,
+    taskname VARCHAR(30),
+    backlogId INT,
+    sprintId INT,
+    developerName VARCHAR(15),
+    priority INT,
+    PRIMARY KEY (id)
+);
+
