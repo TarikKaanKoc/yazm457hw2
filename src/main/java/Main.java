@@ -1,23 +1,39 @@
-import java.util.concurrent.Semaphore;
+import java.sql.Connection;
+import java.sql.DriverManager;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 public class Main {
 
     public static void main(String[] args) {
+        try {
+            Connection dbConnection = DriverManager.getConnection(
+                    "jdbc:mysql://localhost:3306/yazm457hw2",
+                    "root",
+                    "koc1234*"
+            );
+
+            Statement dbStatement = dbConnection.createStatement();
+
+            dbStatement.execute("DELETE FROM board");
+            dbStatement.execute("DELETE FROM sprint_backlog");
+            dbStatement.execute("DELETE FROM product_backlog");
+        } catch (SQLException sqlException) {
+            throw new RuntimeException(sqlException);
+        }
 
         int teamSize = 5;
-        int sprintCount = 1;
-        Semaphore semaphore = new Semaphore(1);
+        int sprintCount = 3;
 
         TeamMember[] scrum = new TeamMember[5];
 
-        scrum[0] = new ProductOwner(teamSize, sprintCount, semaphore);
-        scrum[1] = new ScrumMaster(teamSize, sprintCount, semaphore);
+        scrum[0] = new ProductOwner(teamSize, sprintCount);
+        scrum[1] = new ScrumMaster(teamSize, sprintCount);
 
         for(int i=2; i < scrum.length; i++)
-            scrum[i] = new Developer(teamSize, String.format("Developer%d", (i-1)), sprintCount, semaphore);
+            scrum[i] = new Developer(teamSize, String.format("Developer%d", (i-1)), sprintCount);
 
         for(TeamMember member : scrum)
             member.start();
-
     }
 }

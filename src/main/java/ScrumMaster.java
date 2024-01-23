@@ -1,56 +1,69 @@
 import java.sql.*;
-import java.util.concurrent.Semaphore;
+import java.util.ArrayList;
 
 public class ScrumMaster extends TeamMember{
 
-    String url = "jdbc:mysql://localhost:3306/yazm457hw2"; // Veritabanı adını ekleyin
-    String user = "root"; // Kullanıcı adı
-    String password = "koc1234*"; // Şifre
+    private String url = "jdbc:mysql://localhost:3306/yazm457hw2";
+    private String username = "root";
+    private String password = "koc1234*";
 
-    private Semaphore semaphore;
-
-    public ScrumMaster(int teamSize, int sprintCount, Semaphore semaphore) {
+    public ScrumMaster(int teamSize, int sprintCount) {
         super(teamSize, "ScrumMaster", sprintCount);
-        this.semaphore = semaphore;
     }
 
     @Override
     public void operate() {
         try {
-            semaphore.acquire();
-            try (Connection connection = DriverManager.getConnection(url, user, password)) {
-                for (int i = 0; i < teamSize - 2; i++) {
-                    String sqlSelect = "SELECT * FROM product_backlog WHERE backlogId = ?";
-                    String sqlInsert = "INSERT INTO sprint_backlog (taskname, backlogId, sprintId, priority) VALUES (?, ?, ?, ?)";
-                    try(PreparedStatement pstmtSelect = connection.prepareStatement(sqlSelect);
-                        PreparedStatement pstmtInsert = connection.prepareStatement(sqlInsert)) {
-                        pstmtSelect.setInt(1, i + 1);
-                        ResultSet rs = pstmtSelect.executeQuery();
-                        if (rs.next()) {
-                            pstmtInsert.setString(1, rs.getString("taskname"));
-                            pstmtInsert.setInt(2, rs.getInt("backlogId"));
-                            pstmtInsert.setInt(3, i + 1);  // Sprint ID
-                            pstmtInsert.setInt(4, rs.getInt("priority"));
-                            pstmtInsert.executeUpdate();
-                        }
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+            Connection dbConnection = DriverManager.getConnection(url, username, password);
+            String selectQuery = """
+            SELECT *
+            FROM (
+                SELECT *
+                FROM product_backlog
+                ORDER BY taskId DESC
+                LIMIT 3
+            ) AS subQuery
+            ORDER BY priority;
+            """;
+
+            Statement dbStatement = dbConnection.createStatement();
+
+            ResultSet taskResultSet = dbStatement.executeQuery(selectQuery);
+
+            String insertQuery = "INSERT INTO sprint_backlog(taskname, backlogId, sprintId, priority) " +
+                    "VALUES ('%s', %d, %d, %d)";
+            ArrayList<String> insertStatements = new ArrayList<>();
+
+            while (taskResultSet.next()){
+                insertStatements.add(
+                        insertQuery.formatted(
+                                taskResultSet.getString("taskname"),
+                                taskResultSet.getInt("backlogId"),
+                                sprintId,
+                                taskResultSet.getInt("priority")
+                        )
+                );
             }
-            semaphore.release();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
+
+            for (String insertStatement : insertStatements){
+                dbStatement.execute(insertStatement);
+            }
+
+            dbConnection.close();
+        } catch (SQLException sqlException) {
+            throw new IllegalStateException("Veritabanına bağlanılamıyor!", sqlException);
         }
     }
 
     @Override
     public void run() {
-        for (int i=1; i <= sprintCount; i++){
+
+        for (int i=1;i <= sprintCount; i++){
             try {
+                thread.join(200);
                 operate();
                 Thread.sleep(1000);
+                sprintId++;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }

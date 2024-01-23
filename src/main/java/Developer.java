@@ -1,25 +1,19 @@
 import java.sql.*;
-import java.util.concurrent.Semaphore;
 
 public class Developer extends TeamMember {
 
-    String url = "jdbc:mysql://localhost:3306/yazm457hw2";
-    String user = "root"; // Kullanıcı adı
-    String password = "koc1234*"; // Şifre
-
-    private Semaphore semaphore;
-
-    public Developer(int teamSize, String threadName, int sprintCount, Semaphore semaphore) {
+    public Developer(int teamSize, String threadName, int sprintCount) {
         super(teamSize, threadName, sprintCount);
-        this.semaphore = semaphore;
     }
 
     @Override
     public void run() {
-        for (int i = 1; i <= this.sprintCount; i++) {
+        for (int i=1;i <= this.sprintCount; i++){
             try {
+                thread.join(500);
                 operate();
                 Thread.sleep(1000);
+                backlogId = 1;
             } catch (InterruptedException e) {
                 e.printStackTrace();
             }
@@ -27,37 +21,42 @@ public class Developer extends TeamMember {
         System.out.println(threadName + " bitti...");
     }
 
+    static int backlogId = 1;
+
+    @Override
     public void operate() {
-        try {
-            semaphore.acquire();
+        function(threadName);
+    }
 
-            try (Connection connection = DriverManager.getConnection(url, user, password)) {
-                String sqlSelect = "SELECT * FROM sprint_backlog WHERE sprintId = ?";
-                String sqlInsert = "INSERT INTO board (taskname, backlogId, sprintId, developerName, priority) VALUES (?, ?, ?, ?, ?)";
+    private static synchronized void function(String name){
+        try (Connection dbConnection = DriverManager.getConnection(
+                "jdbc:mysql://localhost:3306/yazm457hw2",
+                "root",
+                "koc1234*")) {
 
-                try (PreparedStatement pstmtSelect = connection.prepareStatement(sqlSelect);
-                     PreparedStatement pstmtInsert = connection.prepareStatement(sqlInsert)) {
+            String selectQuery = "SELECT * FROM sprint_backlog WHERE sprintId = ? AND backlogId = ?";
+            try (PreparedStatement selectStatement = dbConnection.prepareStatement(selectQuery)) {
+                selectStatement.setInt(1, sprintId);
+                selectStatement.setInt(2, backlogId);
 
-                    pstmtSelect.setInt(1, sprintCount);  // Sprint ID
-                    ResultSet rs = pstmtSelect.executeQuery();
+                ResultSet sprintBacklogResultSet = selectStatement.executeQuery();
 
-                    while (rs.next()) { // Her bir sonuç için işlem yapılıyor
-                        pstmtInsert.setString(1, rs.getString("taskname"));
-                        pstmtInsert.setInt(2, rs.getInt("backlogId"));
-                        pstmtInsert.setInt(3, rs.getInt("sprintId"));
-                        pstmtInsert.setString(4, this.threadName);
-                        pstmtInsert.setInt(5, rs.getInt("priority"));
-                        pstmtInsert.executeUpdate();
+                if (sprintBacklogResultSet.next()) {
+                    String insertQuery = "INSERT INTO board (taskname, backlogId, sprintId, developerName, priority) VALUES (?, ?, ?, ?, ?)";
+                    try (PreparedStatement insertStatement = dbConnection.prepareStatement(insertQuery)) {
+                        insertStatement.setString(1, sprintBacklogResultSet.getString("taskname"));
+                        insertStatement.setInt(2, sprintBacklogResultSet.getInt("backlogId"));
+                        insertStatement.setInt(3, sprintBacklogResultSet.getInt("sprintId"));
+                        insertStatement.setString(4, name);
+                        insertStatement.setInt(5, sprintBacklogResultSet.getInt("priority"));
+
+                        insertStatement.executeUpdate();
+                        backlogId++;
                     }
                 }
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
-                semaphore.release();
             }
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
+        } catch (SQLException sqlException) {
+            throw new RuntimeException("Veritabanı işlemi sırasında hata oluştu: " + sqlException.getMessage(), sqlException);
         }
     }
 }

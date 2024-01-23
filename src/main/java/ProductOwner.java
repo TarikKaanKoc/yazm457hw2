@@ -1,16 +1,14 @@
 import java.sql.Connection;
 import java.sql.DriverManager;
-import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.sql.Statement;
 import java.util.Random;
-import java.util.concurrent.Semaphore;
 
 public class ProductOwner extends TeamMember{
 
-    // Veritabanı bağlantı bilgileri
-    String url = "jdbc:mysql://localhost:3306/yazm457hw2"; // Veritabanı adını ekleyin
-    String user = "root"; // Kullanıcı adı
-    String password = "koc1234*"; // Şifre
+    private String url = "jdbc:mysql://localhost:3306/yazm457hw2";
+    private String username = "root";
+    private String password = "koc1234*";
 
     public static class Task {
 
@@ -28,11 +26,9 @@ public class ProductOwner extends TeamMember{
 
             String[] gorevler = {"testing", "documenting", "coding"};
             Random ran = new Random();
-            // Returns number between 0-2
             int index = ran.nextInt(3);
             String taskName = gorevler[index];
 
-            // Returns number between 0-9
             int priority = ran.nextInt(10);
 
             return new Task(taskName, backlogId, priority);
@@ -44,35 +40,26 @@ public class ProductOwner extends TeamMember{
         }
     }
 
-    private Semaphore semaphore;
-
-    public ProductOwner(int teamSize, int sprintCount, Semaphore semaphore) {
+    public ProductOwner(int teamSize, int sprintCount) {
         super(teamSize, "ProductOwner", sprintCount);
-        this.semaphore = semaphore;
     }
 
     @Override
     public void operate() {
         try {
-            semaphore.acquire();
-            try (Connection connection = DriverManager.getConnection(url, user, password)) {
-                for (int i = 0; i < teamSize - 2; i++) {
-                    Task task = Task.generateTask(i + 1);
-                    String sql = "INSERT INTO product_backlog (taskname, backlogId, priority) VALUES (?, ?, ?)";
-                    try (PreparedStatement pstmt = connection.prepareStatement(sql)) {
-                        pstmt.setString(1, task.name);
-                        pstmt.setInt(2, task.backlogId);
-                        pstmt.setInt(3, task.priority);
-                        pstmt.executeUpdate();
-                    }
-                }
-            } catch (SQLException e) {
-                e.printStackTrace();
+            Connection dbConnection = DriverManager.getConnection(url, username, password);
+            for (int index = 2; index < teamSize; index++) {
+                Task currentTask = Task.generateTask(index - 1);
+
+                String insertQuery = "INSERT INTO product_backlog(taskname, backlogId, priority) VALUES ('%s', %d, %d)"
+                        .formatted(currentTask.name, currentTask.backlogId, currentTask.priority);
+
+                Statement dbStatement = dbConnection.createStatement();
+                dbStatement.execute(insertQuery);
             }
-            semaphore.release();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-            e.printStackTrace();
+            dbConnection.close();
+        } catch (SQLException sqlException) {
+            throw new IllegalStateException("Veritabanına bağlanılamıyor!", sqlException);
         }
     }
 
@@ -88,6 +75,5 @@ public class ProductOwner extends TeamMember{
             }
         }
         System.out.println(threadName + " bitti...");
-
     }
 }

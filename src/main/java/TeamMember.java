@@ -1,5 +1,6 @@
 public abstract class TeamMember implements Runnable {
 
+    public static int sprintId = 1;
     public int teamSize;
     protected int sprintCount;
 
@@ -13,7 +14,7 @@ public abstract class TeamMember implements Runnable {
     }
 
     public void start() {
-        System.out.println(threadName + " started");
+        System.out.println(threadName + " başladı...");
         if (thread == null) {
             thread = new Thread(this, threadName);
             thread.start();
@@ -21,5 +22,4 @@ public abstract class TeamMember implements Runnable {
     }
 
     public abstract void operate();
-
 }
