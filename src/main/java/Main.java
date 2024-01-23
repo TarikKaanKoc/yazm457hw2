@@ -7,6 +7,11 @@ public class Main {
 
     public static void main(String[] args) {
         try {
+            // Aşağıdaki sorgular;
+            // Her run ettiğimizde tablolar arası ilişkisel bütünlüğü sağlamak ve
+            // 'sprintId' karışıklığını önlemek için tabloları temizlemek adına kullanılıyor
+            // TKK...
+
             Connection dbConnection = DriverManager.getConnection(
                     "jdbc:mysql://localhost:3306/yazm457hw2",
                     "root",
